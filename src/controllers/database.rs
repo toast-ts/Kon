@@ -32,6 +32,33 @@ impl DatabaseController {
       );
     ").await?;
 
+    // Guild Case IDs
+    client.batch_execute("
+      CREATE TABLE IF NOT EXISTS guild_case_ids (
+        guild_id BIGINT NOT NULL,
+        max_case_id INT NOT NULL DEFAULT 0,
+        PRIMARY KEY (guild_id)
+      );
+    ").await?;
+
+    // ModerationEvents
+    client.batch_execute("
+      CREATE TABLE IF NOT EXISTS moderation_events (
+        guild_id BIGINT NOT NULL,
+        case_id INT NOT NULL,
+        action_type VARCHAR(255) NOT NULL,
+        is_active BOOLEAN NOT NULL DEFAULT FALSE,
+        user_id BIGINT NOT NULL,
+        user_tag VARCHAR(255) NOT NULL,
+        reason VARCHAR(1024) NOT NULL,
+        moderator_id BIGINT NOT NULL,
+        moderator_tag VARCHAR(255) NOT NULL,
+        time_created BIGINT NOT NULL,
+        duration BIGINT,
+        PRIMARY KEY (guild_id, case_id)
+      );
+    ").await?;
+
     Ok(DatabaseController { client })
   }
 }

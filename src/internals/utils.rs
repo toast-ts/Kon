@@ -17,6 +17,14 @@ pub fn concat_message(messages: Vec<String>) -> String {
   messages.join("\n")
 }
 
+pub fn capitalize_first(s: &str) -> String {
+  let mut chars = s.chars();
+  match chars.next() {
+    None => String::new(),
+    Some(f) => f.to_uppercase().collect::<String>() + chars.as_str(),
+  }
+}
+
 pub fn format_duration(secs: u64) -> String {
   let days = secs / 86400;
   let hours = (secs % 86400) / 3600;

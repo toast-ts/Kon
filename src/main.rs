@@ -3,10 +3,6 @@ mod controllers;
 mod models;
 mod internals;
 
-use std::{
-  env::var,
-  error
-};
 use poise::serenity_prelude::{
   builder::{
     CreateMessage,
@@ -21,9 +17,11 @@ use poise::serenity_prelude::{
   GatewayIntents
 };
 
-type Error = Box<dyn error::Error + Send + Sync>;
+type Error = Box<dyn std::error::Error + Send + Sync>;
 
 static BOT_READY_NOTIFY: u64 = 865673694184996888;
+
+static CAN_DEPLOY_COMMANDS: bool = false;
 
 async fn on_ready(
   ctx: &Context,
@@ -31,6 +29,8 @@ async fn on_ready(
   framework: &poise::Framework<(), Error>
 ) -> Result<(), Error> {
   println!("Connected to API as {}", ready.user.name);
+
+  controllers::timers::start_timers(&ctx, ready.user.to_owned()).await.expect("Failed to start timers");
 
   let message = CreateMessage::new();
   let ready_embed = CreateEmbed::new()
@@ -40,15 +40,14 @@ async fn on_ready(
 
   ChannelId::new(BOT_READY_NOTIFY).send_message(&ctx.http, message.add_embed(ready_embed)).await?;
 
-  let register_commands = var("REGISTER_CMDS").unwrap_or_else(|_| String::from("true")).parse::<bool>().unwrap_or(true);
-
-  if register_commands {
+  if CAN_DEPLOY_COMMANDS {
     let builder = poise::builtins::create_application_commands(&framework.options().commands);
     let commands = Command::set_global_commands(&ctx.http, builder).await;
 
     match commands {
-      Ok(cmdmap) => for command in cmdmap.iter() {
-        println!("Registered command globally: {}", command.name);
+      Ok(cmdmap) => {
+        let command_box: Vec<_> = cmdmap.iter().map(|cmd| cmd.name.clone()).collect();
+        println!("Registered commands globally: {}", command_box.join("\n- "));
       },
       Err(why) => println!("Error registering commands: {:?}", why)
     }
@@ -67,7 +66,14 @@ async fn main() {
         commands::ping::ping(),
         commands::uptime::uptime(),
         commands::status::status(),
-        commands::gameserver::gameserver()
+        commands::gameserver::gameserver(),
+        // Separator here to make it easier to read and update moderation stuff below
+        commands::moderation::case(),
+        commands::moderation::update(),
+        commands::moderation::ban(),
+        commands::moderation::kick(),
+        commands::moderation::mute(),
+        commands::moderation::warn(),
       ],
       pre_command: |ctx| Box::pin(async move {
         let get_guild_name = match ctx.guild() {
